@@ -7,7 +7,7 @@ module Week06Problems where
 data Tree a
   = Leaf
   | Node (Tree a) a (Tree a)
-  deriving Show
+  deriving (Show)
 
 {- 1. Using 'Result' to handle errors.
 
@@ -26,31 +26,37 @@ data Result a
    error message. -}
 
 returnOk :: a -> Result a
-returnOk = undefined
+returnOk = Ok
 
 failure :: String -> Result a
-failure = undefined
+failure = Error
 
 ifOK :: Result a -> (a -> Result b) -> Result b
-ifOK = undefined
+ifOK (Ok a) fn = fn a
+ifOk (Error msg) = Error msg
 
 catch :: Result a -> (String -> Result a) -> Result a
-catch = undefined
+catch (Ok a) handler = Ok a
+catch (Error msg) handler = handler msg
 
 {- Reimplement 'search' to use 'Result' instead of 'Maybe'. We add 'Show
    k' to the requirements, so that we can put the key that wasn't
    found in the error message. -}
 
-search :: (Show k, Eq k) => k -> [(k,v)] -> Result v
-search = undefined
+search :: (Show k, Eq k) => k -> [(k, v)] -> Result v
+search k [] = failure "No keys found"
+search k ((k', v) : kvs) = if k == k' then returnOk v else search k kvs
 
 {- Finally, reimplement 'lookupAll v4' to return 'Result (Tree v)'
    instead of 'Maybe (Tree v)'. (The code will be identical!) -}
 
-lookupAll_v4 :: (Show k, Eq k) => [(k,v)] -> Tree k -> Result (Tree v)
-lookupAll_v4 = undefined
-
-
+lookupAll_v4 :: (Show k, Eq k) => [(k, v)] -> Tree k -> Result (Tree v)
+lookupAll_v4 [] Leaf = returnOk Leaf
+lookupAll_v4 kvs (Node l k r) =
+  lookupAll_v4 kvs l `ifOK` \l' ->
+    search k kvs `ifOK` \v ->
+      lookupAll_v4 kvs r `ifOK` \r' ->
+        returnOk (Node l' v r')
 
 {- 2. Processes
 
@@ -68,9 +74,13 @@ data Process a
 
 interaction :: Process ()
 interaction =
-    Output "What is your name?"
-    (Input (\name ->
-              Output ("Hello " ++ name ++ "!") (End ())))
+  Output
+    "What is your name?"
+    ( Input
+        ( \name ->
+            Output ("Hello " ++ name ++ "!") (End ())
+        )
+    )
 
 {- Processes by themselves do not do anything. They are only
    descriptions of what to do. To have an effect on the world, we to
@@ -78,8 +88,8 @@ interaction =
    will cover this in more detail in Week 08): -}
 
 runProcess :: Process a -> IO a
-runProcess (End a)         = return a
-runProcess (Input k)       = do line <- getLine; runProcess (k line)
+runProcess (End a) = return a
+runProcess (Input k) = do line <- getLine; runProcess (k line)
 runProcess (Output line p) = do putStrLn line; runProcess p
 
 {- Now we can run the 'interaction' described above:
@@ -109,8 +119,8 @@ output s = Output s (End ())
    functions from the notes. -}
 
 sequ :: Process a -> (a -> Process b) -> Process b
-sequ (End a)      f = undefined
-sequ (Input k)    f = undefined
+sequ (End a) f = undefined
+sequ (Input k) f = undefined
 sequ (Output s p) f = undefined
 
 {- HINT: this is very very similar to the 'subst' function from the Week
@@ -121,10 +131,10 @@ sequ (Output s p) f = undefined
 
 interaction_v2 :: Process ()
 interaction_v2 =
-  output "What is your name?"      `sequ` \() ->
-  input                            `sequ` \name ->
-  output ("Hello " ++ name ++ "!") `sequ` \() ->
-  End ()
+  output "What is your name?" `sequ` \() ->
+    input `sequ` \name ->
+      output ("Hello " ++ name ++ "!") `sequ` \() ->
+        End ()
 
 {- Running 'runProcess interaction_v2' should have the same effect as
    running 'runProcess interaction' did.
@@ -158,7 +168,7 @@ interactiveMap = undefined
    "y" then the element is kept. If the user types anything else, it
    is not copied into the output list. -}
 
-interactiveFilter :: Show a => [a] -> Process [a]
+interactiveFilter :: (Show a) => [a] -> Process [a]
 interactiveFilter = undefined
 
 {- For example,
